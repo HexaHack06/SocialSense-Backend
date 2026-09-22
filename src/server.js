@@ -10,9 +10,38 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
-  : ['http://localhost:5173', 'http://localhost:5174'];
+
+// Helper to normalize origins (strips trailing slashes, subpaths, and extracts protocol + host)
+const normalizeOrigin = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  const trimmed = str.trim().replace(/\/+$/, '');
+  try {
+    const url = new URL(trimmed);
+    return url.origin;
+  } catch (e) {
+    return trimmed;
+  }
+};
+
+// Default allowed origins: production GitHub Pages and local development ports
+const defaultAllowedOrigins = [
+  'https://hexahack06.github.io',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:3000'
+];
+
+// Safely parse comma-separated origins from FRONTEND_URL
+const envOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',')
+      .map(normalizeOrigin)
+      .filter(Boolean)
+  : [];
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
 
 // Connect to MongoDB if configured
 connectDatabase();
@@ -22,10 +51,22 @@ app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:(517[0-9]|3000)$/.test(origin)) {
+    // Allow non-browser requests (curl, server-to-server, health checks)
+    if (!origin) {
       return callback(null, true);
     }
-    return callback(new Error('Not allowed by CORS'));
+
+    const normalized = normalizeOrigin(origin);
+
+    if (
+      allowedOrigins.includes(normalized) ||
+      /^http:\/\/(localhost|127\.0\.0\.1):(517[0-9]|3000)$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+
+    console.warn(`Blocked by CORS: origin='${origin}', normalized='${normalized}'`);
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
   },
   credentials: true
 }));
