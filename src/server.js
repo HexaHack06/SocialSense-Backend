@@ -100,6 +100,26 @@ const datasetRoutes = require('./routes/datasetRoutes');
 // Dataset import routes
 app.use('/api/datasets', datasetRoutes);
 
+const trendsRoutes = require('./routes/trendsRoutes');
+
+// Trends routes
+app.use('/api/trends', trendsRoutes);
+
+const audienceRoutes = require('./routes/audienceRoutes');
+
+// Audience routes
+app.use('/api/audience', audienceRoutes);
+
+const networkRoutes = require('./routes/networkRoutes');
+
+// Network routes
+app.use('/api/network', networkRoutes);
+
+const alertsRoutes = require('./routes/alertsRoutes');
+
+// Alerts routes
+app.use('/api/alerts', alertsRoutes);
+
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 SocialSense backend running on port ${PORT}`);
