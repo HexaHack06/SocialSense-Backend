@@ -85,6 +85,11 @@ app.get('/api/health', (req, res) => {
 // Overview routes
 app.use('/api/overview', overviewRoutes);
 
+const sentimentRoutes = require('./routes/sentimentRoutes');
+
+// Sentiment routes
+app.use('/api/sentiment', sentimentRoutes);
+
 const telegramRoutes = require('./routes/telegramRoutes');
 
 // Telegram routes
