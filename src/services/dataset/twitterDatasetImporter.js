@@ -5,6 +5,7 @@ const csv = require('csv-parser');
 const mongoose = require('mongoose');
 const Post = require('../../models/Post');
 const { analyzeTweet } = require('../nlp/historicalTextAnalyzer');
+const { analyzeSentiment } = require('../aiService');
 
 /**
  * Extract hashtags from text
@@ -148,6 +149,7 @@ const normalizeTwitterRow = (row, datasetName) => {
     aspects: analysis.aspects,
     topicId: analysis.topicId,
     topicName: analysis.topicName,
+    keywords: [],
     botScore: analysis.botScore,
     metadata
   };
@@ -278,9 +280,26 @@ const importTwitterDataset = async (options = {}) => {
   });
 };
 
+/**
+ * Reusable helper to enrich an individual X/Twitter post with the AI service.
+ * Used for real-time / newly ingested posts without modifying historical dataset batch processing.
+ */
+const enrichTwitterPostWithAi = async (postData) => {
+  if (!postData || !postData.text) return postData;
+  const aiResult = await analyzeSentiment(postData.text);
+  return {
+    ...postData,
+    sentiment: aiResult.sentiment || postData.sentiment,
+    topicName: aiResult.topic || postData.topicName,
+    topicId: aiResult.topic ? aiResult.topic.toLowerCase() : postData.topicId,
+    keywords: Array.isArray(aiResult.keywords) ? aiResult.keywords : (postData.keywords || [])
+  };
+};
+
 module.exports = {
   importTwitterDataset,
   normalizeTwitterRow,
+  enrichTwitterPostWithAi,
   resolveDatasetPath,
   generateDeterministicId,
   extractHashtags,

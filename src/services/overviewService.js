@@ -131,7 +131,8 @@ const getOverviewData = async ({ platform, startDate, endDate }) => {
               mentions: 1,
               mediaType: 1,
               location: 1,
-              topicName: 1
+              topicName: 1,
+              keywords: 1
             }
           }
         ]

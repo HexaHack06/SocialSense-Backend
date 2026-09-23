@@ -82,6 +82,10 @@ const postSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    keywords: [{
+      type: String,
+      trim: true
+    }],
     botScore: {
       type: Number
     },

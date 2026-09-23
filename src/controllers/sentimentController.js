@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const { getSentimentData } = require('../services/sentimentService');
+const { analyzeSentiment } = require('../services/aiService');
+const Post = require('../models/Post');
 
 const VALID_PLATFORMS = ['all', 'twitter', 'instagram', 'telegram'];
 
@@ -63,4 +66,75 @@ const getSentiment = async (req, res) => {
   }
 };
 
-module.exports = { getSentiment };
+/**
+ * POST /api/sentiment/analyze
+ * Body:
+ *   text      - string (required)
+ *   platform  - string (optional: 'twitter', 'telegram', etc.)
+ *   postId    - string (optional MongoDB _id to attach/update)
+ *   save      - boolean (optional: true to store/update post in DB)
+ */
+const analyzePostSentiment = async (req, res) => {
+  try {
+    const { text, platform, postId, save } = req.body || {};
+
+    if (!text || typeof text !== 'string' || text.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Text field is required and cannot be empty.'
+      });
+    }
+
+    const aiResult = await analyzeSentiment(text);
+
+    let savedPost = null;
+
+    // Optional persistence: attach and store/update post in MongoDB
+    if (save && mongoose.connection.readyState === 1) {
+      const enrichmentData = {
+        sentiment: aiResult.sentiment,
+        topicName: aiResult.topic || 'General',
+        topicId: (aiResult.topic || 'general').toLowerCase(),
+        keywords: Array.isArray(aiResult.keywords) ? aiResult.keywords : []
+      };
+
+      if (postId) {
+        savedPost = await Post.findByIdAndUpdate(
+          postId,
+          enrichmentData,
+          { new: true }
+        );
+      } else {
+        savedPost = await Post.create({
+          platform: (platform || 'manual').toLowerCase(),
+          text: text.trim(),
+          ...enrichmentData,
+          createdAt: new Date()
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        text: text.trim(),
+        sentiment: aiResult.sentiment,
+        topic: aiResult.topic || 'General',
+        keywords: Array.isArray(aiResult.keywords) ? aiResult.keywords : [],
+        ...(savedPost && { postId: savedPost._id, platform: savedPost.platform }),
+        ...(aiResult.fallback && { fallback: true })
+      }
+    });
+  } catch (error) {
+    console.error('Error in analyzePostSentiment controller:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while analyzing sentiment'
+    });
+  }
+};
+
+module.exports = {
+  getSentiment,
+  analyzePostSentiment
+};

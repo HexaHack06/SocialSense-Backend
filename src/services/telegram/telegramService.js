@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Post = require('../../models/Post');
+const { analyzeSentiment } = require('../aiService');
 
 /**
  * Extract hashtags from entities or text
@@ -106,6 +107,7 @@ const parseTelegramUpdateToPost = (update) => {
     aspects: [],
     topicId: null,
     topicName: null,
+    keywords: [],
     botScore: null,
     metadata: {
       updateId: update.update_id,
@@ -188,6 +190,17 @@ const syncTelegramUpdates = async () => {
     if (existing) {
       skipped++;
       continue;
+    }
+
+    // Phase 6.5: Enrich post with AI sentiment, topic, and keywords
+    if (postData.text) {
+      const aiResult = await analyzeSentiment(postData.text);
+      postData.sentiment = aiResult.sentiment;
+      if (aiResult.topic) {
+        postData.topicName = aiResult.topic;
+        postData.topicId = aiResult.topic.toLowerCase();
+      }
+      postData.keywords = Array.isArray(aiResult.keywords) ? aiResult.keywords : [];
     }
 
     await Post.create(postData);
