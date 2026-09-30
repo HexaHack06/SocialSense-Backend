@@ -217,12 +217,24 @@ const getSentimentData = async ({ platform, startDate, endDate }) => {
     }));
 
   // --- Process emotion breakdown ---
-  const emotionBreakdown = (facetResult.emotionData || []).map(item => ({
-    emotion: item._id,
-    value: Number((item.avgScore * 100).toFixed(1)), // Convert 0-1 score to 0-100 for UI
-    count: item.count,
-    fullMark: 100
-  }));
+  const totalEmotionCount = (facetResult.emotionData || []).reduce((acc, item) => acc + (item.count || 0), 0) || 1;
+  const maxEmotionCount = Math.max(...(facetResult.emotionData || []).map(i => i.count || 0), 1);
+
+  const emotionBreakdown = (facetResult.emotionData || []).map(item => {
+    const rawName = item._id || 'General';
+    const emotionName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+    // Relative volume prevalence scaled to 100 so radar chart dynamically shifts when dates change
+    const dynamicRadarValue = Number(((item.count / maxEmotionCount) * 100).toFixed(1));
+    const prevalencePct = Number(((item.count / totalEmotionCount) * 100).toFixed(1));
+    return {
+      emotion: emotionName,
+      value: dynamicRadarValue,
+      percentage: prevalencePct,
+      count: item.count,
+      avgScore: Number((item.avgScore || 0).toFixed(2)),
+      fullMark: 100
+    };
+  });
 
   // --- Process aspect breakdown ---
   const aspectBreakdown = (facetResult.aspectData || []).map(item => {
