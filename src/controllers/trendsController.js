@@ -49,7 +49,8 @@ const getTrends = async (req, res) => {
     console.error('Error in getTrends controller:', error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error while fetching trends data'
+      message: 'Internal server error while fetching trends data',
+      error: error.message
     });
   }
 };

@@ -78,6 +78,7 @@ const overviewRoutes = require('./routes/overviewRoutes');
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
+    version: '1.1.0',
     message: 'SocialSense backend is running'
   });
 });
