@@ -41,9 +41,15 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
     }
   }
 
+  // Filter out null or missing topic names for meaningful trend analysis
+  const topicQuery = {
+    ...query,
+    topicName: { $exists: true, $ne: null, $nin: ['', 'null'] }
+  };
+
   // 1. Group by topic to get mentions, sentiments, and engagement
   const topicAgg = await Post.aggregate([
-    { $match: query },
+    { $match: topicQuery },
     {
       $group: {
         _id: '$topicName',
@@ -52,9 +58,9 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
         totalLikes: { $sum: '$metrics.likes' },
         totalShares: { $sum: '$metrics.shares' },
         avgSentiment: { $avg: '$sentimentScore' },
-        posCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'positive'] }, 1, 0] } },
-        negCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'negative'] }, 1, 0] } },
-        neuCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'neutral'] }, 1, 0] } },
+        posCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'positive'] }, 1, 0] } },
+        negCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'negative'] }, 1, 0] } },
+        neuCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'neutral'] }, 1, 0] } },
         platforms: { $addToSet: '$platform' },
         aspectNames: { $push: '$aspects.name' }
       }
@@ -73,7 +79,7 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
   } else {
     // If no date range provided, find the min and max date in the collection
     const dateRangeDoc = await Post.aggregate([
-      { $match: query },
+      { $match: topicQuery },
       { $group: { _id: null, minDate: { $min: '$createdAt' }, maxDate: { $max: '$createdAt' } } }
     ]);
     if (dateRangeDoc && dateRangeDoc[0] && dateRangeDoc[0].minDate && dateRangeDoc[0].maxDate) {
@@ -87,7 +93,7 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
   let growthMap = {};
   if (halfDate) {
     const growthAgg = await Post.aggregate([
-      { $match: query },
+      { $match: topicQuery },
       {
         $group: {
           _id: {
@@ -151,7 +157,7 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
   const trendingTopics = [];
 
   topicAgg.forEach((t, index) => {
-    const topic = t._id;
+    const topic = t._id || 'General';
     const mentions = t.mentions;
     const growth = growthMap[topic] || '+12%';
     const growthNum = parseInt(growth.replace('%', ''), 10) || 0;
@@ -196,12 +202,12 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
       status,
       sentiment: dominantSentiment,
       relatedKeywords,
-      recentPosts: samplePostsByTopic[topic] || []
+      recentPosts: samplePostsByTopic[t._id] || samplePostsByTopic[topic] || []
     });
   });
 
   // 4. Trend Activity Timeline (top 3 topics over time)
-  const top3Topics = topicAgg.slice(0, 3).map(t => t._id);
+  const top3Topics = topicAgg.slice(0, 3).map(t => t._id || 'General').filter(Boolean);
   const timelineAgg = await Post.aggregate([
     {
       $match: {

@@ -40,6 +40,8 @@ const getAlertsData = async ({ platform, startDate, endDate }) => {
     }
   }
 
+  const formatPlatform = (p) => (!p || p === 'all') ? 'Twitter' : p.charAt(0).toUpperCase() + p.slice(1);
+
   // Single facet aggregation to collect all data points needed for alert generation
   const [facetResult] = await Post.aggregate([
     { $match: query },
@@ -47,13 +49,14 @@ const getAlertsData = async ({ platform, startDate, endDate }) => {
       $facet: {
         // Topic sentiment stats
         topicStats: [
+          { $match: { topicName: { $exists: true, $ne: null, $nin: ['', 'null'] } } },
           {
             $group: {
               _id: '$topicName',
               total: { $sum: 1 },
-              negCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'negative'] }, 1, 0] } },
-              posCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'positive'] }, 1, 0] } },
-              neuCount: { $sum: { $cond: [{ $eq: ['$sentiment', 'neutral'] }, 1, 0] } },
+              negCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'negative'] }, 1, 0] } },
+              posCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'positive'] }, 1, 0] } },
+              neuCount: { $sum: { $cond: [{ $eq: [{ $toLower: '$sentiment' }, 'neutral'] }, 1, 0] } },
               totalLikes: { $sum: '$metrics.likes' },
               totalShares: { $sum: '$metrics.shares' },
               latestPostDate: { $max: '$createdAt' }
@@ -64,7 +67,7 @@ const getAlertsData = async ({ platform, startDate, endDate }) => {
 
         // High bot score / automated spam patterns
         botSpikes: [
-          { $match: { botScore: { $gte: 0.25 } } },
+          { $match: { botScore: { $gte: 0.25 }, topicName: { $exists: true, $ne: null, $nin: ['', 'null'] } } },
           {
             $group: {
               _id: '$topicName',
@@ -133,7 +136,7 @@ const getAlertsData = async ({ platform, startDate, endDate }) => {
       details: {
         volume: `${worstSentimentTopic.total.toLocaleString()} posts`,
         change: `+${negPct}% negative`,
-        affectedPlatform: platform === 'all' ? 'Twitter' : platform.charAt(0).toUpperCase() + platform.slice(1),
+        affectedPlatform: formatPlatform(platform),
         urgency: 'Immediate'
       }
     });
@@ -155,7 +158,7 @@ const getAlertsData = async ({ platform, startDate, endDate }) => {
       details: {
         volume: `${topVolumeTopic.total.toLocaleString()} posts`,
         change: `+${Math.round((topVolumeTopic.posCount / topVolumeTopic.total) * 100)}% positive`,
-        affectedPlatform: platform === 'all' ? 'All Platforms' : platform.charAt(0).toUpperCase() + platform.slice(1),
+        affectedPlatform: formatPlatform(platform),
         urgency: 'Today'
       }
     });
