@@ -138,7 +138,9 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
         .lean();
 
       samplePostsByTopic[t._id] = recentPosts.map(p => ({
+        id: p._id,
         text: p.text,
+        post: p.text,
         sentiment: p.sentiment
           ? p.sentiment.charAt(0).toUpperCase() + p.sentiment.slice(1)
           : 'Neutral',
@@ -147,7 +149,10 @@ const getTrendsData = async ({ platform, startDate, endDate }) => {
           : 'Twitter',
         time: p.createdAt
           ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'Recently'
+          : 'Recently',
+        createdAt: p.createdAt,
+        username: p.username || p.authorName || '—',
+        metrics: p.metrics || {}
       }));
     })
   );

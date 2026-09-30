@@ -269,6 +269,7 @@ const getSentimentData = async ({ platform, startDate, endDate }) => {
     return {
       id: p._id,
       post: p.text,
+      text: p.text,
       sentiment: p.sentiment
         ? p.sentiment.charAt(0).toUpperCase() + p.sentiment.slice(1)
         : 'Neutral',
@@ -276,14 +277,15 @@ const getSentimentData = async ({ platform, startDate, endDate }) => {
       confidence: confidence !== null ? confidence : 0,
       platform: p.platform
         ? p.platform.charAt(0).toUpperCase() + p.platform.slice(1)
-        : 'Unknown',
+        : 'Twitter',
       time: p.createdAt
         ? new Date(p.createdAt).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric'
           })
-        : '',
+        : 'Recently',
+      createdAt: p.createdAt,
       sentimentScore: p.sentimentScore,
       username: p.username || p.authorName || '—',
       metrics: p.metrics || {}

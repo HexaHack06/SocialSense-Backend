@@ -263,7 +263,12 @@ const getOverviewData = async ({ platform, startDate, endDate }) => {
     },
     sentimentTimeline: formattedTimeline,
     topics: formattedTopics,
-    recentPosts: facetResult.recentPosts || []
+    recentPosts: (facetResult.recentPosts || []).map(p => ({
+      ...p,
+      id: p._id,
+      post: p.text || p.post || '',
+      text: p.text || p.post || ''
+    }))
   };
 };
 
